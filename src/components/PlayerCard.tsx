@@ -1,6 +1,7 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, useMotionTemplate } from "framer-motion";
+import { useRef, useState } from "react";
 import { usePlayer } from "@/hooks/usePlayer";
 import VinylDisc from "./VinylDisc";
 import TrackControls from "./TrackControls";
@@ -18,6 +19,20 @@ export default function PlayerCard() {
   const player = usePlayer();
   const { currentTrack, isQueueOpen, toggleQueue, tracks, currentIndex, handleSelectTrack } =
     player;
+
+  const cardRef = useRef<HTMLDivElement>(null);
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = cardRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    mouseX.set(e.clientX - rect.left);
+    mouseY.set(e.clientY - rect.top);
+  };
+
+  const borderGradient = useMotionTemplate`radial-gradient(circle 160px at ${mouseX}px ${mouseY}px, rgba(255,255,255,0.35), transparent 70%)`;
 
   return (
     <div className="relative w-full min-h-screen flex items-center justify-center bg-[#0A0A0F] overflow-hidden">
@@ -42,7 +57,8 @@ export default function PlayerCard() {
 
       {/* ── Player card ── */}
       <motion.div
-        className="relative z-10 w-[440px] max-w-[calc(100vw-2rem)] rounded-3xl"
+        ref={cardRef}
+        className="relative z-10 w-[440px] max-w-[calc(100vw-2rem)] rounded-4xl"
         style={{
           background: "rgba(255,255,255,0.035)",
           backdropFilter: "blur(28px) saturate(180%)",
@@ -54,10 +70,32 @@ export default function PlayerCard() {
         initial={{ opacity: 0, y: 32, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ type: "spring", stiffness: 200, damping: 28, delay: 0.1 }}
+        onMouseMove={handleMouseMove}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
+        {/* Border glow that follows the mouse */}
+        <motion.div
+          className="absolute inset-0 rounded-4xl pointer-events-none"
+          style={{
+            padding: "1px",
+            background: borderGradient,
+            WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+            WebkitMaskComposite: "xor",
+            maskComposite: "exclude",
+            opacity: isHovered ? 1 : 0,
+            transition: "opacity 0.3s ease",
+          }}
+        />
+
         <div className="p-7">
           {/* ── Vinyl disc ── */}
-          <VinylDisc track={currentTrack} isPlaying={player.isPlaying} />
+          <VinylDisc
+            track={currentTrack}
+            isPlaying={player.isPlaying}
+            onScratch={player.scratch}
+            onScratchEnd={player.endScratch}
+          />
 
           {/* ── Track info ── */}
           <div className="mt-5 text-center min-h-[72px]">
@@ -69,18 +107,18 @@ export default function PlayerCard() {
                 exit={{ opacity: 0, y: -12 }}
                 transition={{ type: "spring", stiffness: 300, damping: 28 }}
               >
-                <h1 className="text-white text-xl font-semibold tracking-tight leading-tight">
+                <h1 className="text-white text-3xl mt-10 font-semibold tracking-tight leading-tight text-trim-both font-bricolage">
                   {currentTrack.title}
                 </h1>
-                <p className="text-white/55 text-sm mt-1.5 font-medium">
+                <p className="text-white/55 text-sm mt-4 text-trim-both font-medium">
                   {currentTrack.artist}
                 </p>
-                <p className="text-white/30 text-xs mt-0.5">
+                <p className="text-white/30 text-xs text-trim-both mt-3 mb-6 uppercase tracking-widest">
                   {currentTrack.album}
                 </p>
               </motion.div>
             </AnimatePresence>
-          </div>
+          </div> 
 
           {/* ── Controls ── */}
           <TrackControls player={player} />

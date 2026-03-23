@@ -124,29 +124,36 @@ function ProgressBar({
   const thumbScale = isHovering || isDragging ? 1.5 : 1;
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-2">
       {/* Track */}
       <div
         ref={trackRef}
-        className="relative h-[3px] rounded-full cursor-pointer group"
-        style={{ background: "rgba(255,255,255,0.1)" }}
+        className="relative h-10 flex items-center cursor-pointer group"
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
         onMouseDown={handleMouseDown}
       >
-        {/* Filled portion */}
-        <motion.div
-          className="absolute left-0 top-0 h-full rounded-full"
-          style={{ width: `${progress}%`, backgroundColor: accentColor }}
-          transition={{ ease: "linear" }}
-        />
+        {/* Visual track */}
+        <div
+          className="absolute inset-x-0 h-[3px] rounded-full"
+          style={{ background: "rgba(255,255,255,0.1)" }}
+        >
+          {/* Filled portion */}
+          <motion.div
+            className="absolute left-0 top-0 h-full rounded-full"
+            style={{ width: `${progress}%`, backgroundColor: accentColor }}
+            transition={{ ease: "linear" }}
+          />
+        </div>
 
         {/* Thumb */}
         <motion.div
-          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-md pointer-events-none"
-          style={{ left: `${progress}%`, x: "-50%" }}
+          className="absolute top-1/2 w-3 h-3 rounded-full bg-white shadow-md pointer-events-none"
+          style={{ left: `${progress}%`, x: "-50%", y: "-50%" }}
           animate={{ scale: thumbScale }}
-          transition={{ type: "spring", stiffness: 400, damping: 25 }}
+          transition={thumbScale === 1
+            ? { type: "spring", bounce: 0.55, duration: 0.45 }
+            : { type: "spring", stiffness: 500, damping: 25 }}
         />
       </div>
 
@@ -193,25 +200,32 @@ function VolumeSlider({ volume, onChange, accentColor }: VolumeSliderProps) {
   );
 
   return (
-    <div className="flex items-center gap-1.5 w-32">
+    <div className="flex items-center gap-2 w-32">
       <IconVolumeLow />
       <div
         ref={trackRef}
-        className="relative flex-1 h-[3px] rounded-full cursor-pointer"
-        style={{ background: "rgba(255,255,255,0.1)" }}
+        className="relative flex-1 h-10 flex items-center cursor-pointer"
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
         onMouseDown={handleMouseDown}
       >
+        {/* Visual track */}
         <div
-          className="absolute left-0 top-0 h-full rounded-full transition-colors duration-500"
-          style={{ width: `${volume * 100}%`, backgroundColor: accentColor }}
-        />
+          className="absolute inset-x-0 h-[3px] rounded-full"
+          style={{ background: "rgba(255,255,255,0.1)" }}
+        >
+          <div
+            className="absolute left-0 top-0 h-full rounded-full transition-colors duration-500"
+            style={{ width: `${volume * 100}%`, backgroundColor: accentColor }}
+          />
+        </div>
         <motion.div
-          className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white pointer-events-none"
-          style={{ left: `${volume * 100}%`, x: "-50%" }}
+          className="absolute top-1/2 w-2.5 h-2.5 rounded-full bg-white pointer-events-none"
+          style={{ left: `${volume * 100}%`, x: "-50%", y: "-50%" }}
           animate={{ scale: isHovering ? 1.4 : 1 }}
-          transition={{ type: "spring", stiffness: 400, damping: 25 }}
+          transition={isHovering
+            ? { type: "spring", stiffness: 500, damping: 25 }
+            : { type: "spring", bounce: 0.55, duration: 0.45 }}
         />
       </div>
       <IconVolumeHigh />
@@ -258,7 +272,7 @@ export default function TrackControls({ player }: Props) {
           whileTap={{ scale: 0.88 }}
           transition={{ type: "spring", stiffness: 500, damping: 25 }}
           onClick={handlePrev}
-          className="text-white/60 hover:text-white transition-colors p-2"
+          className="flex items-center justify-center w-10 h-10 text-white/60 hover:text-white transition-colors"
           aria-label="Previous"
         >
           <IconPrev />
@@ -269,7 +283,7 @@ export default function TrackControls({ player }: Props) {
           whileTap={{ scale: 0.9 }}
           transition={{ type: "spring", stiffness: 600, damping: 22 }}
           onClick={handleTogglePlay}
-          className="flex items-center justify-center w-14 h-14 rounded-full text-white shadow-lg"
+          className="flex items-center justify-center w-14 h-14 rounded-[22px] text-white shadow-lg"
           style={{
             background: `linear-gradient(135deg, ${currentTrack.accentColor}cc, ${currentTrack.accentColor}88)`,
             boxShadow: `0 4px 20px ${currentTrack.accentColor}55`,
@@ -292,7 +306,7 @@ export default function TrackControls({ player }: Props) {
           whileTap={{ scale: 0.88 }}
           transition={{ type: "spring", stiffness: 500, damping: 25 }}
           onClick={handleNext}
-          className="text-white/60 hover:text-white transition-colors p-2"
+          className="flex items-center justify-center w-10 h-10 text-white/60 hover:text-white transition-colors"
           aria-label="Next"
         >
           <IconNext />

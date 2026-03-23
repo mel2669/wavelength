@@ -9,10 +9,13 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
+        "bricolage": ["var(--font-bricolage)", "system-ui", "sans-serif"],
       },
       backdropBlur: {
         xs: "2px",
+      },
+      borderRadius: {
+        "4xl": "72px",
       },
     },
   },

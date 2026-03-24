@@ -93,6 +93,7 @@ export default function PlayerCard() {
           <VinylDisc
             track={currentTrack}
             isPlaying={player.isPlaying}
+            analyserNode={player.analyserNode}
             onScratch={player.scratch}
             onScratchEnd={player.endScratch}
           />

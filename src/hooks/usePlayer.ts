@@ -12,6 +12,7 @@ export interface PlayerState {
   volume: number;   // 0–1
   isQueueOpen: boolean;
   currentTime: number;
+  analyserNode: AnalyserNode | null;
   handleTogglePlay: () => void;
   handleNext: () => void;
   handlePrev: () => void;
@@ -34,6 +35,8 @@ export function usePlayer(): PlayerState {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const currentIndexRef = useRef(0);
   const isPlayingRef = useRef(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
 
   useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
@@ -43,6 +46,7 @@ export function usePlayer(): PlayerState {
     const audio = new Audio();
     audio.preload = "metadata";
     audio.volume = 0.75;
+    audio.crossOrigin = "anonymous"; // required for Web Audio API analyser on cross-origin streams
     audioRef.current = audio;
 
     audio.addEventListener("timeupdate", () => {
@@ -79,17 +83,41 @@ export function usePlayer(): PlayerState {
     }
   }, [currentIndex]);
 
+  const ensureAudioContext = useCallback(() => {
+    if (audioContextRef.current) {
+      if (audioContextRef.current.state === "suspended") {
+        audioContextRef.current.resume();
+      }
+      return;
+    }
+    if (!audioRef.current) return;
+    try {
+      const ctx = new AudioContext();
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 64;
+      analyser.smoothingTimeConstant = 0.8;
+      const source = ctx.createMediaElementSource(audioRef.current);
+      source.connect(analyser);
+      analyser.connect(ctx.destination);
+      audioContextRef.current = ctx;
+      setAnalyserNode(analyser);
+    } catch (e) {
+      console.warn("AudioContext setup failed:", e);
+    }
+  }, []);
+
   // Sync play / pause
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !audio.src) return;
 
     if (isPlaying) {
+      ensureAudioContext();
       audio.play().catch(() => setIsPlaying(false));
     } else {
       audio.pause();
     }
-  }, [isPlaying]);
+  }, [isPlaying, ensureAudioContext]);
 
   // Sync volume
   useEffect(() => {
@@ -175,6 +203,7 @@ export function usePlayer(): PlayerState {
     volume,
     isQueueOpen,
     currentTime,
+    analyserNode,
     handleTogglePlay,
     handleNext,
     handlePrev,

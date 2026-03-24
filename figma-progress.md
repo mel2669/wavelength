@@ -8,10 +8,10 @@
 | Page Name | Figma Page ID | Status |
 |-----------|--------------|--------|
 | 🎨 Tokens | 0:1 | Complete |
-| 🧩 Components | 2:184 | In Progress (Steps 3a + 3b done) |
-| 📄 Home Player | 2:185 | Not Started |
-| 📄 Loading States | 2:186 | Not Started |
-| 📄 Empty States | 2:187 | Not Started |
+| 🧩 Components | 2:184 | In Progress (Steps 3a + 3b + 3c + 3d done) |
+| 📄 Home Player | 2:185 | Complete (Default + Queue Open screens) |
+| 📄 Loading States | 2:186 | Complete (player skeleton stub) |
+| 📄 Empty States | 2:187 | Complete (no-tracks stub) |
 
 ## Token Styles
 - Color styles: ✓ Created 27 styles (bg/×4, white/×15, accent/×6, vinyl/×2)
@@ -47,11 +47,25 @@
 | Artwork/Vinyl Center | 6:522 | Single (image placeholder) | ✓ |
 | Artwork/Queue Thumbnail | 6:524 | Single (image placeholder) | ✓ |
 | NowPlaying Indicator | 6:526 | Single (teal accent placeholder) | ✓ |
+| Backdrop/Overlay | 18:5 | Single | ✓ |
+| Ambient/Gradient | 18:9 | Single (teal placeholder, dynamic at runtime) | ✓ |
+| Noise/Texture | 18:11 | Single | ✓ |
+| VinylDisc | 18:15 | State=Paused (static), State=Playing (rotation annotation) | ✓ |
+| TrackControls | 18:33 | Single (instances of Slider/Progress Bar, Slider/Volume, playback buttons) | ✓ |
+| QueueDrawer | 2001:41 | Single (header + track list, instances of Button/Queue Close + Button/Queue Track Item) | ✓ |
+| PlayerCard | 2001:89 | Single (full screen assembly: Ambient/Gradient, Noise/Texture, VinylDisc, TrackControls, Button/Queue Toggle) | ✓ |
 
 ## Pages Reconstructed
 | Page | Frame | Node ID | Status |
 |------|-------|---------|--------|
-| — | — | — | Not started |
+| Home Player | Default, Queue Open | 2001:139, 2001:190 | ✓ |
+| Loading States | Player Skeleton | 2001:286 | ✓ |
+| Empty States | No Tracks | 2001:300 | ✓ |
+
+## Step 5 — Polish & Annotation (Complete)
+- VinylDisc artwork-circle: updated from flat dark fill to teal-to-purple radial gradient placeholder
+- VinylDisc: added 🔄 playing-state annotation callout (rotation CSS, trigger, origin) in Step 3c section
+- Spec Sheet (node 2001:313): created in 📐 Spec Sheet — Handoff section covering Background, Queue Drawer, Spacing, Radii & Sizes, Typography, Animation Notes
 
 ## Issues Log
 - elevation/play-btn and elevation/track-glow reference accent/teal as placeholder; actual color is dynamic per-track at runtime
@@ -61,6 +75,5 @@
 - Slider/Volume Hover state thumb is 14px (vs 10px default); total-duration text clipped at 320px container width (cosmetic)
 
 ## Next Session
-Step: 3c — Layout & Background Components
-Scope: Backdrop Overlay, Ambient Gradient, Noise Texture, VinylDisc (composite), TrackControls (composite)
-Files to load: src/components/VinylDisc.tsx, src/components/PlayerCard.tsx, src/components/TrackControls.tsx
+The file is complete and ready for handoff. No further steps planned.
+If revisiting: consider swapping VinylDisc artwork-circle gradient for a real image fill once assets are available.

@@ -9,10 +9,12 @@ import {
 } from "framer-motion";
 import Image from "next/image";
 import { Track } from "@/lib/tracks";
+import FrequencyVisualizer from "./FrequencyVisualizer";
 
 interface Props {
   track: Track;
   isPlaying: boolean;
+  analyserNode: AnalyserNode | null;
   onScratch: (rate: number) => void;
   onScratchEnd: () => void;
 }
@@ -56,7 +58,7 @@ function angleDiff(a: number, b: number): number {
   return d;
 }
 
-export default function VinylDisc({ track, isPlaying, onScratch, onScratchEnd }: Props) {
+export default function VinylDisc({ track, isPlaying, analyserNode, onScratch, onScratchEnd }: Props) {
   const rotation    = useMotionValue(0);
   const isPlayingRef   = useRef(isPlaying);
   const isScratchingRef = useRef(false);
@@ -113,6 +115,14 @@ export default function VinylDisc({ track, isPlaying, onScratch, onScratchEnd }:
 
   return (
     <div className="relative flex justify-center items-center py-2">
+      {/* Left frequency visualizer */}
+      <FrequencyVisualizer
+        analyserNode={analyserNode}
+        accentColor={track.accentColor}
+        isPlaying={isPlaying}
+        side="left"
+      />
+
       {/* Ambient glow */}
       <motion.div
         className="absolute rounded-full blur-3xl pointer-events-none"
@@ -172,29 +182,25 @@ export default function VinylDisc({ track, isPlaying, onScratch, onScratchEnd }:
         />
 
         {/* Album art — center circle */}
-        <div
-          className="absolute rounded-full overflow-hidden pointer-events-none"
-          style={{ inset: "26%", boxShadow: "0 0 0 1px rgba(255,255,255,0.06)" }}
-        >
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={track.id}
-              className="absolute inset-0"
-              initial={{ opacity: 0, scale: 0.75 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.75 }}
-              transition={{ type: "spring", stiffness: 320, damping: 28 }}
-            >
-              <Image
-                src={track.artwork}
-                alt={track.title}
-                fill
-                className="object-cover"
-                unoptimized
-              />
-            </motion.div>
-          </AnimatePresence>
-        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={track.id}
+            className="absolute rounded-full overflow-hidden pointer-events-none"
+            style={{ inset: "26%", boxShadow: "0 0 0 1px rgba(255,255,255,0.06)" }}
+            initial={{ opacity: 0, scale: 0.75 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.75 }}
+            transition={{ type: "spring", stiffness: 320, damping: 28 }}
+          >
+            <Image
+              src={track.artwork}
+              alt={track.title}
+              fill
+              className="object-cover"
+              unoptimized
+            />
+          </motion.div>
+        </AnimatePresence>
 
         {/* Center spindle hole */}
         <div
@@ -207,6 +213,14 @@ export default function VinylDisc({ track, isPlaying, onScratch, onScratchEnd }:
           }}
         />
       </motion.div>
+
+      {/* Right frequency visualizer */}
+      <FrequencyVisualizer
+        analyserNode={analyserNode}
+        accentColor={track.accentColor}
+        isPlaying={isPlaying}
+        side="right"
+      />
 
       {/* Fixed specular reflection — light from top-left, matches 135° card gradient */}
       <div

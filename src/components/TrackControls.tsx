@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
-import { motion } from "framer-motion";
+import { useRef, useState, useCallback, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { PlayerState } from "@/hooks/usePlayer";
+import { useWaveform } from "@/hooks/useWaveform";
 
 function formatTime(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
@@ -45,6 +46,26 @@ function IconPause() {
   );
 }
 
+function IconHeart() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  );
+}
+
+function IconShare() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+    </svg>
+  );
+}
+
 function IconVolumeLow() {
   return (
     <svg
@@ -73,13 +94,37 @@ function IconVolumeHigh() {
   );
 }
 
-// ── Progress Bar ───────────────────────────────────────────────────────────
+// ── Waveform Progress Bar ──────────────────────────────────────────────────
+
+const WAVEFORM_BARS = 72;
+
+/** Seeded LCG — produces a stable waveform shape per track */
+function generateWaveform(seed: string, count: number): number[] {
+  let s = seed.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const rand = () => {
+    s = (s * 1664525 + 1013904223) & 0x7fffffff;
+    return s / 0x7fffffff;
+  };
+  const raw = Array.from({ length: count }, rand);
+  // Smooth over neighbours so it looks like real audio energy
+  const smoothed = raw.map((v, i) => {
+    const win = [raw[i - 2], raw[i - 1], v, raw[i + 1], raw[i + 2]].filter(
+      (x): x is number => x !== undefined
+    );
+    return win.reduce((a, b) => a + b, 0) / win.length;
+  });
+  const min = Math.min(...smoothed);
+  const max = Math.max(...smoothed);
+  return smoothed.map((v) => 0.12 + ((v - min) / (max - min)) * 0.88);
+}
 
 interface ProgressBarProps {
   progress: number;
   currentTime: number;
   duration: number;
   accentColor: string;
+  trackId: string;
+  trackSrc: string;
   onSeek: (value: number) => void;
 }
 
@@ -88,11 +133,17 @@ function ProgressBar({
   currentTime,
   duration,
   accentColor,
+  trackId,
+  trackSrc,
   onSeek,
 }: ProgressBarProps) {
   const trackRef = useRef<HTMLDivElement>(null);
-  const [isHovering, setIsHovering] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
+
+  const realWaveform = useWaveform(trackId, trackSrc);
+  const seedWaveform = useMemo(() => generateWaveform(trackId, WAVEFORM_BARS), [trackId]);
+  const bars = realWaveform ?? seedWaveform;
 
   const getPct = useCallback(
     (clientX: number) => {
@@ -121,41 +172,60 @@ function ProgressBar({
     [getPct, onSeek]
   );
 
-  const thumbScale = isHovering || isDragging ? 1.5 : 1;
+  const active = isHovering || isDragging;
 
   return (
     <div className="flex flex-col gap-2">
-      {/* Track */}
-      <div
+      <motion.div
         ref={trackRef}
-        className="relative h-10 flex items-center cursor-pointer group"
+        className="relative h-[25px] cursor-pointer select-none"
+        animate={{ opacity: active ? 1 : 0.4 }}
+        transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+        style={{
+          cursor: isDragging ? "grabbing" : "pointer",
+          // Mask fades the left and right edges into transparency
+          WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)",
+          maskImage: "linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)",
+        }}
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
         onMouseDown={handleMouseDown}
       >
-        {/* Visual track */}
-        <div
-          className="absolute inset-x-0 h-[3px] rounded-full"
-          style={{ background: "rgba(255,255,255,0.1)" }}
-        >
-          {/* Filled portion */}
+        <AnimatePresence mode="wait">
           <motion.div
-            className="absolute left-0 top-0 h-full rounded-full"
-            style={{ width: `${progress}%`, backgroundColor: accentColor }}
-            transition={{ ease: "linear" }}
-          />
-        </div>
+            key={trackId}
+            className="absolute inset-0"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+          >
+            {/* Dim layer — full waveform */}
+            <div className="absolute inset-0 flex items-center gap-[2px]">
+              {bars.map((h, i) => (
+                <div key={i} className="flex-1 h-full flex items-center">
+                  <div className="w-full rounded-full" style={{ height: `${h * 100}%`, backgroundColor: "rgba(255,255,255,0.15)" }} />
+                </div>
+              ))}
+            </div>
 
-        {/* Thumb */}
-        <motion.div
-          className="absolute top-1/2 w-3 h-3 rounded-full bg-white shadow-md pointer-events-none"
-          style={{ left: `${progress}%`, x: "-50%", y: "-50%" }}
-          animate={{ scale: thumbScale }}
-          transition={thumbScale === 1
-            ? { type: "spring", bounce: 0.55, duration: 0.45 }
-            : { type: "spring", stiffness: 500, damping: 25 }}
-        />
-      </div>
+            {/* Accent layer — clipped to progress */}
+            <div
+              className="absolute inset-0 flex items-center gap-[2px]"
+              style={{ clipPath: `inset(0 ${100 - progress}% 0 0 round 1px)` }}
+            >
+              {bars.map((h, i) => (
+                <div key={i} className="flex-1 h-full flex items-center">
+                  <div
+                    className="w-full rounded-full"
+                    style={{ height: `${h * 100}%`, backgroundColor: accentColor }}
+                  />
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </motion.div>
 
       {/* Times */}
       <div className="flex justify-between text-xs text-white/35 tabular-nums select-none">
@@ -253,6 +323,40 @@ export default function TrackControls({ player }: Props) {
     setVolume,
   } = player;
 
+  const [controlsHovered, setControlsHovered] = useState(false);
+
+  // A small offset keeps the positional shift subtle — just enough to imply
+  // direction without looking like the buttons are flying in from far away.
+  const skipOffset = 22;
+
+  const skipVariants = {
+    hidden: (dir: number) => ({
+      opacity: 0,
+      x: dir * skipOffset,
+    }),
+    visible: {
+      opacity: 1,
+      x: 0,
+    },
+  };
+
+  // Per-property transitions so opacity and position can feel independent:
+  // - opacity fades in quickly and cleanly on a gentle ease-in
+  // - x drifts in on an expo-out curve: fast start, long graceful deceleration
+  //   so the button feels like it materialises rather than slides into place
+  const skipTransition = {
+    opacity: {
+      type: "tween" as const,
+      duration: 0.18,
+      ease: [0.4, 0, 1, 1] as [number, number, number, number],
+    },
+    x: {
+      type: "tween" as const,
+      duration: 0.42,
+      ease: [0.16, 1, 0.3, 1] as [number, number, number, number],
+    },
+  };
+
   return (
     <div className="flex flex-col gap-4 mt-6">
       {/* Progress bar */}
@@ -261,19 +365,44 @@ export default function TrackControls({ player }: Props) {
         currentTime={currentTime}
         duration={currentTrack.duration}
         accentColor={currentTrack.accentColor}
+        trackId={currentTrack.id}
+        trackSrc={currentTrack.src}
         onSeek={handleSeek}
       />
 
       {/* Playback controls */}
-      <div className="flex items-center justify-center gap-3">
-        {/* Previous */}
+      <div
+        className="flex items-center justify-center gap-3"
+        onMouseEnter={() => setControlsHovered(true)}
+        onMouseLeave={() => setControlsHovered(false)}
+      >
+        {/* Like */}
         <motion.button
+          custom={1}
+          variants={skipVariants}
+          animate={controlsHovered ? "visible" : "hidden"}
+          transition={skipTransition}
           whileHover={{ scale: 1.08 }}
           whileTap={{ scale: 0.88 }}
-          transition={{ type: "spring", stiffness: 500, damping: 25 }}
+          className="flex items-center justify-center w-10 h-10 text-white/50 hover:text-white transition-colors"
+          aria-label="Like"
+          style={{ pointerEvents: controlsHovered ? "auto" : "none" }}
+        >
+          <IconHeart />
+        </motion.button>
+
+        {/* Previous */}
+        <motion.button
+          custom={1}
+          variants={skipVariants}
+          animate={controlsHovered ? "visible" : "hidden"}
+          transition={skipTransition}
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.88 }}
           onClick={handlePrev}
           className="flex items-center justify-center w-10 h-10 text-white/60 hover:text-white transition-colors"
           aria-label="Previous"
+          style={{ pointerEvents: controlsHovered ? "auto" : "none" }}
         >
           <IconPrev />
         </motion.button>
@@ -302,14 +431,33 @@ export default function TrackControls({ player }: Props) {
 
         {/* Next */}
         <motion.button
+          custom={-1}
+          variants={skipVariants}
+          animate={controlsHovered ? "visible" : "hidden"}
+          transition={skipTransition}
           whileHover={{ scale: 1.08 }}
           whileTap={{ scale: 0.88 }}
-          transition={{ type: "spring", stiffness: 500, damping: 25 }}
           onClick={handleNext}
           className="flex items-center justify-center w-10 h-10 text-white/60 hover:text-white transition-colors"
           aria-label="Next"
+          style={{ pointerEvents: controlsHovered ? "auto" : "none" }}
         >
           <IconNext />
+        </motion.button>
+
+        {/* Share */}
+        <motion.button
+          custom={-1}
+          variants={skipVariants}
+          animate={controlsHovered ? "visible" : "hidden"}
+          transition={skipTransition}
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.88 }}
+          className="flex items-center justify-center w-10 h-10 text-white/50 hover:text-white transition-colors"
+          aria-label="Share"
+          style={{ pointerEvents: controlsHovered ? "auto" : "none" }}
+        >
+          <IconShare />
         </motion.button>
       </div>
 
